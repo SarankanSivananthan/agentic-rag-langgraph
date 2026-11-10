@@ -1,0 +1,68 @@
+source_id,decision,note
+1612,keep,"San Carlos, Maldonado"
+1094,reject,"fragment of a sentence, not a question ('The State Court rules what?')"
+1281,reject,asks about skin colour; the gold answer describes fur
+1412,reject,no subject: which city's bus network?
+1042,reject,fragment ('What centred in Sierra?')
+1002,reject,"the passage gives two answers (dense vegetation, or up trees); gold lists one"
+1129,keep,"Summerhill, New York"
+1272,reject,fragment
+816,keep,"March 4, 1825"
+1211,reject,no subject: which animal's guard hair?
+1057,reject,"ambiguous; the evidence is about a law partnership, not a factory"
+979,reject,no subject ('the creatures')
+895,reject,ambiguous: John Adams or John Quincy Adams
+937,keep,marsupium
+1273,reject,refers to 'the page' the question was read from
+80,keep,Avogadro
+629,keep,Warrior King
+1653,keep,Partido Colorado and Partido Blanco
+909,reject,ambiguous: John Adams or John Quincy Adams
+28,keep,John Wilkes Booth
+1335,keep,baladiyah
+389,keep,quacks like a duck
+1279,reject,vague ('What is largest polar bear on record?')
+842,reject,"wrong name and wrong fact (a term of office, not an election)"
+1231,keep,for camouflage
+1516,keep,spherical
+347,reject,the passage names three species; gold lists one
+673,keep,between 32 and 62 kilograms
+1331,keep,Doha Players Theatre
+1565,reject,fragment
+140,reject,pronoun without a referent
+983,reject,no subject
+725,reject,pronoun without a referent
+1498,reject,vague ('from'); the evidence is a birthplace
+1556,keep,mud or sand
+876,reject,dataset inconsistency: same answer as question 877 but a different year (1772 vs 1832)
+1038,reject,many valid answers
+164,keep,mimicry
+154,reject,vague ('What happened from 1730 to 1744?')
+487,reject,"premise wrong: Alexander I was the tsar, not a general"
+49,reject,ill-formed question
+1518,keep,every few years or more
+1258,keep,3 meters
+1191,reject,evidence passage does not clearly concern otters
+1448,keep,Malay
+846,keep,1814
+782,reject,no subject
+635,reject,ambiguous: 'makes up' a parliament
+295,keep,British North America Act
+976,keep,roo bars
+514,reject,no subject: weather where?
+1549,keep,Paracryptodira
+1157,reject,fragment
+978,keep,hopping
+1566,reject,no subject ('the largest species')
+1202,keep,holt
+155,reject,vague
+889,reject,ambiguous: Adams
+522,reject,no subject
+403,keep,more than 78 million
+1237,keep,between 17 and 20
+637,reject,vague
+182,reject,no subject
+872,reject,fragment
+1000,keep,pumapard
+26,keep,"March 4, 1861"
+858,keep,Maria Hester Monroe Gouverneur

@@ -12,7 +12,11 @@ A tool-using agent is easy to demo and hard to evaluate. The question this proje
 
 - [x] Retriever over the Wikipedia passages (same chunking and embeddings as rag-wikipedia; `src/agentic_rag/retriever.py`)
 - [x] Calculator tools (arithmetic and date differences; `src/agentic_rag/calculator.py`)
-- [ ] Hand-built evaluation set, labelled with the tools each question needs: lookup, calculation, multi-step, unanswerable
+- [ ] Hand-built evaluation set, labelled with the tools each question needs (`data/eval/`, loader in `src/agentic_rag/evalset.py`):
+  - [x] lookup (30)
+  - [ ] calculation
+  - [ ] multi-step
+  - [ ] unanswerable
 - [ ] Fixed-pipeline baseline (plain RAG) scored on that set
 - [ ] LangGraph agent: routing, retrieval, relevance check with query rewriting, step limit
 - [ ] Evaluation: tool-choice accuracy, answer exact match / F1, correct abstention, steps, latency, cost — each with 95% intervals
@@ -36,3 +40,9 @@ pytest
 ```
 
 The retriever reproduces rag-wikipedia's: on the 498 questions whose answer can be checked by string match, the answer text appears in the top-4 chunks for 46.6% of them, the figure measured there for 250-character chunks.
+
+## The evaluation set
+
+Questions are stored one JSON line each in `data/eval/<category>.jsonl`, with the tools a correct solution needs and the evidence (passage id plus a verbatim quote) the answer rests on. `tests/test_evalset.py` checks the set against the corpus: every quote must be an exact substring of its passage, and every lookup answer must appear in its evidence.
+
+**Lookup (30 questions).** Drawn from the 918 questions of rag-mini-wikipedia's test set — not chosen by whether a system gets them right, which would make any comparison meaningless. Procedure (`scripts/build_lookup_questions.py`): keep questions with a checkable answer found verbatim in 1-5 passages, shuffle with a fixed seed, and review in that order, keeping the first 30 that are well posed. All 67 reviewed questions have a recorded decision and reason in [`data/eval/lookup_review.csv`](data/eval/lookup_review.csv). Over half were rejected: fragments ("What centred in Sierra?"), pronouns with no referent ("When did he die?"), ambiguous names ("What was Adams' political party?"), and errors in the source data (two questions giving the same answer for different years; a heart attack attributed to Calvin Coolidge Jr. that was his father's). Gold answers are verbatim spans of the evidence, shortened by hand where the dataset gave a whole sentence.
