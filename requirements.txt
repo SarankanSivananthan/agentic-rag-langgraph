@@ -1,0 +1,10 @@
+numpy<2
+pandas
+pyarrow
+sentence-transformers
+faiss-cpu
+langchain-core
+langchain-community
+langchain-huggingface
+langchain-text-splitters
+pytest

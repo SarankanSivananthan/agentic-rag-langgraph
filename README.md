@@ -10,7 +10,7 @@ A tool-using agent is easy to demo and hard to evaluate. The question this proje
 
 ## Plan
 
-- [ ] Retriever tool over the Wikipedia passages (same chunking and embeddings as rag-wikipedia)
+- [x] Retriever over the Wikipedia passages (same chunking and embeddings as rag-wikipedia; `src/agentic_rag/retriever.py`)
 - [ ] Calculator tool (arithmetic and date differences)
 - [ ] Hand-built evaluation set, labelled with the tools each question needs: lookup, calculation, multi-step, unanswerable
 - [ ] Fixed-pipeline baseline (plain RAG) scored on that set
@@ -21,3 +21,18 @@ A tool-using agent is easy to demo and hard to evaluate. The question this proje
 ## Evaluation design
 
 The evaluation set is small and written by hand, so its intervals will be wide; that is stated next to every number rather than hidden. Every question records which tools a correct solution uses, so tool choice can be scored separately from answer quality. Agent and baseline are scored on identical questions with the same metrics (SQuAD-style exact match and token F1, as in rag-wikipedia).
+
+## Data
+
+`data/passages.parquet` is the knowledge base: the 3,200 Wikipedia passages of [`rag-datasets/rag-mini-wikipedia`](https://huggingface.co/datasets/rag-datasets/rag-mini-wikipedia) (CC-BY 3.0), the same file used by rag-wikipedia. The retriever's index is built from it on first use (a couple of minutes on CPU) and cached in `data/faiss_index/`, which is not versioned.
+
+## Setup
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pytest
+```
+
+The retriever reproduces rag-wikipedia's: on the 498 questions whose answer can be checked by string match, the answer text appears in the top-4 chunks for 46.6% of them, the figure measured there for 250-character chunks.
