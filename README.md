@@ -64,3 +64,14 @@ Questions are stored one JSON line each in `data/eval/<category>.jsonl`, with th
 | **Total** | **98** | |
 
 With 98 questions, per-category results rest on 20-30 questions each, so confidence intervals will be wide (several points either way) and are reported as such. The set is also uneven: calculation and multi-step questions lean on a handful of subjects (U.S. presidents, a few scientists). It is meant to expose differences between a fixed pipeline and an agent, not to give a precise absolute score.
+
+## How answers are scored
+
+Defined in `src/agentic_rag/metrics.py`, with no model in it, and tested on its own (`tests/test_metrics.py`). The answer metrics are the SQuAD-style pair from rag-wikipedia, so agent and fixed pipeline are comparable with it:
+
+- **Correct** — the headline per-question criterion. For text answers, the normalised gold answer must appear in the answer on word boundaries (an agent replies in sentences, which exact match would score as wrong against a short gold span). For numeric answers, the gold number must be among the numbers in the answer. For unanswerable questions, abstaining *is* the correct answer. Abstaining on an answerable question is wrong.
+- **Exact match and token F1** — reported next to it, as in rag-wikipedia.
+- **Tool use**, from a trace of tool calls: whether every kind of tool the question needs was called, whether a two-step question made at least two retrievals, and which tools were called needlessly.
+- **95% bootstrap intervals** on every rate.
+
+Known leniencies, stated rather than hidden: "contained in the answer" can credit a verbose answer that mentions the gold among other things, and an answer that says "not in the knowledge base, but I believe it is Accra" counts as an abstention on an unanswerable question even though it leaks a guess. Both are why the final answers are kept short and why EM/F1 are shown alongside.
