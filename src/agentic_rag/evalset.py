@@ -43,6 +43,7 @@ class Question:
     source: str
     computation: dict | None = None  # how a calculation question's answer follows from its evidence
     answer_type: str = "text"  # "number": judged on the number in the answer, not on its wording
+    chain: dict | None = None  # multi-step: the descriptor that step 1 resolves, and to which entity
 
 
 def _parse(record: dict) -> Question:
@@ -64,6 +65,7 @@ def _parse(record: dict) -> Question:
         source=record["source"],
         computation=record.get("computation"),
         answer_type=answer_type,
+        chain=record.get("chain"),
     )
 
 

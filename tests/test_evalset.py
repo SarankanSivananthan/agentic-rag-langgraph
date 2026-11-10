@@ -130,3 +130,37 @@ def test_subtracting_the_years_is_not_enough_for_many_calculation_questions():
         and parse_date(q.computation["args"][1]).year - parse_date(q.computation["args"][0]).year != int(q.answer)
     ]
     assert len(wrong_by_subtraction) >= 8
+
+
+# --- multi-step -----------------------------------------------------------
+
+
+def test_multi_step_questions_are_two_retrievals_in_two_different_passages():
+    multi = by_category("multi_step")
+    assert len(multi) == 24
+    for q in multi:
+        assert q.expected_tools == ("retrieve",), q.id
+        assert len(q.evidence) == 2, q.id
+        assert q.evidence[0].passage_id != q.evidence[1].passage_id, q.id
+
+
+def test_the_first_step_names_the_entity_but_does_not_contain_the_answer():
+    for q in by_category("multi_step"):
+        first = q.evidence[0]
+        assert q.chain["descriptor"] in first.quote, q.id
+        assert q.chain["entity"].split()[-1] in PASSAGES[first.passage_id], q.id
+        assert q.answer.lower() not in PASSAGES[first.passage_id].lower(), q.id
+
+
+def test_the_second_step_has_the_answer_but_not_the_descriptor():
+    # No lexical shortcut: the passage holding the answer never repeats the
+    # question's own description of the entity ("thirteenth President").
+    for q in by_category("multi_step"):
+        second = q.evidence[1]
+        assert q.answer.lower() in second.quote.lower(), q.id
+        assert q.chain["descriptor"].lower() not in PASSAGES[second.passage_id].lower(), q.id
+
+
+def test_multi_step_questions_cover_a_variety_of_entities():
+    entities = {q.chain["entity"] for q in by_category("multi_step")}
+    assert len(entities) >= 10
