@@ -16,7 +16,7 @@ A tool-using agent is easy to demo and hard to evaluate. The question this proje
   - [x] lookup (30)
   - [x] calculation (24)
   - [x] multi-step (24)
-  - [ ] unanswerable
+  - [x] unanswerable (20)
 - [ ] Fixed-pipeline baseline (plain RAG) scored on that set
 - [ ] LangGraph agent: routing, retrieval, relevance check with query rewriting, step limit
 - [ ] Evaluation: tool-choice accuracy, answer exact match / F1, correct abstention, steps, latency, cost — each with 95% intervals
@@ -50,3 +50,17 @@ Questions are stored one JSON line each in `data/eval/<category>.jsonl`, with th
 **Calculation (24 questions).** An age, or a number of days or years between two dates stated in the corpus, plus one plain subtraction ("How old was Michael Faraday when he married Sarah Barnard?", "How many days passed between Abraham Lincoln's election and his first inauguration?"). These are written by hand from the cited passages (`scripts/build_calculation_questions.py`) and need the retriever *and* the calculator. Counting whole years depends on whether a birthday has been reached, which is where models slip without a tool: 8 of the 21 year-based questions are not answered by subtracting the two years. Each gold answer is computed by the calculator tool and cross-checked in the build script and again in the tests with an independent datetime computation; each input date must appear verbatim in the cited evidence. Questions whose result would depend on assuming the 1st for an incomplete date were left out, since the whole-year answer there is ambiguous. Numeric answers are marked `answer_type: number` so they can be judged on the number rather than the wording.
 
 **Multi-step (24 questions).** Questions where the second lookup depends on the first: "Where was the thirteenth President of the United States born?" has to find out who that was before it can look up a birthplace (`scripts/build_multistep_questions.py`). The structure is enforced at build time and again in the tests, so each question really is two-step: the first passage states the descriptor ("thirteenth President") and does not contain the answer, and the second passage contains the answer and does *not* contain the descriptor, so a single search on the question's own words has no lexical shortcut to it. Each question also records the entity the first step resolves to, so a trace can be checked on the intermediate hop as well as on the final answer. Most chains go through U.S. presidents, because the corpus states ordinals ("thirteenth President") in one passage and biographical facts in others; a few use scientists (Avogadro, Faraday). That is a narrower spread than I would like, and it is a limitation of this set.
+
+**Unanswerable (20 questions).** The right behaviour is to search, find nothing relevant and say so, not to answer from the model's own memory (`scripts/build_unanswerable_questions.py`). Twelve are *absent facts* about subjects the corpus does cover ("Who was James Monroe's Vice President?", "What is the capital of Ghana?") — the hard case, because related passages exist and a model that knows the answer is tempted to give it. Eight are *out of domain* ("Who painted the Mona Lisa?"). Absence is checked, not assumed: each question carries regular expressions that would match a passage stating the answer, and the build stops, and the tests fail, if any pattern matches any of the 3,200 passages. Most of my first guesses failed that check (Wilson's second wife, Webster as Fillmore's Secretary of State, Singapore's currency, the number of electoral votes Grant won are all in the corpus), which is why the patterns are broad and why this was not left to memory. A pattern check cannot prove that no passage paraphrases an answer; it is backed by reading the passages on each topic, and that residual risk remains.
+
+### Composition and limits
+
+| Category | Questions | Tools a correct solution uses |
+|---|---|---|
+| lookup | 30 | retriever |
+| calculation | 24 | retriever + calculator |
+| multi-step | 24 | retriever, twice |
+| unanswerable | 20 | retriever, then abstain |
+| **Total** | **98** | |
+
+With 98 questions, per-category results rest on 20-30 questions each, so confidence intervals will be wide (several points either way) and are reported as such. The set is also uneven: calculation and multi-step questions lean on a handful of subjects (U.S. presidents, a few scientists). It is meant to expose differences between a fixed pipeline and an agent, not to give a precise absolute score.

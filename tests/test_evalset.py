@@ -1,6 +1,7 @@
 """Checks on the evaluation set itself: a malformed question, or a quote that no
 longer matches the corpus, fails here instead of silently skewing a result."""
 import json
+import re
 from collections import Counter
 
 from agentic_rag.calculator import calculate, date_difference, parse_date
@@ -164,3 +165,40 @@ def test_the_second_step_has_the_answer_but_not_the_descriptor():
 def test_multi_step_questions_cover_a_variety_of_entities():
     entities = {q.chain["entity"] for q in by_category("multi_step")}
     assert len(entities) >= 10
+
+
+# --- unanswerable ---------------------------------------------------------
+
+
+def test_unanswerable_questions_have_no_answer_and_no_evidence():
+    unanswerable = by_category("unanswerable")
+    assert len(unanswerable) == 20
+    assert Counter(q.subtype for q in unanswerable) == {"absent_fact": 12, "out_of_domain": 8}
+    for q in unanswerable:
+        assert q.answer is None and not q.evidence, q.id
+        assert q.expected_tools == ("retrieve",), q.id
+
+
+def test_no_passage_matches_an_absence_pattern():
+    # The corpus is re-scanned on every run, so a changed corpus cannot quietly
+    # turn an unanswerable question into an answerable one.
+    for q in by_category("unanswerable"):
+        assert q.absence_patterns, q.id
+        for pattern in q.absence_patterns:
+            regex = re.compile(pattern, re.IGNORECASE | re.DOTALL)
+            matches = [pid for pid, text in PASSAGES.items() if regex.search(text)]
+            assert not matches, f"{q.id}: {pattern!r} matches passages {matches[:5]}"
+
+
+def test_absent_fact_questions_are_about_subjects_the_corpus_covers():
+    for q in by_category("unanswerable"):
+        if q.subtype == "absent_fact":
+            assert PASSAGES.str.contains(q.topic, case=False, regex=False).any(), q.id
+        else:
+            assert q.topic is None, q.id
+
+
+def test_the_full_set_has_the_planned_size_and_balance():
+    assert Counter(q.category for q in QUESTIONS) == {
+        "lookup": 30, "calculation": 24, "multi_step": 24, "unanswerable": 20,
+    }

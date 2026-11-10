@@ -44,6 +44,9 @@ class Question:
     computation: dict | None = None  # how a calculation question's answer follows from its evidence
     answer_type: str = "text"  # "number": judged on the number in the answer, not on its wording
     chain: dict | None = None  # multi-step: the descriptor that step 1 resolves, and to which entity
+    subtype: str | None = None  # unanswerable: "absent_fact" or "out_of_domain"
+    topic: str | None = None  # unanswerable/absent_fact: the subject the corpus does cover
+    absence_patterns: tuple[str, ...] = ()  # unanswerable: regexes that must match no passage
 
 
 def _parse(record: dict) -> Question:
@@ -66,6 +69,9 @@ def _parse(record: dict) -> Question:
         computation=record.get("computation"),
         answer_type=answer_type,
         chain=record.get("chain"),
+        subtype=record.get("subtype"),
+        topic=record.get("topic"),
+        absence_patterns=tuple(record.get("absence_patterns", ())),
     )
 
 
