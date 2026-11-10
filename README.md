@@ -11,7 +11,7 @@ A tool-using agent is easy to demo and hard to evaluate. The question this proje
 ## Plan
 
 - [x] Retriever over the Wikipedia passages (same chunking and embeddings as rag-wikipedia; `src/agentic_rag/retriever.py`)
-- [ ] Calculator tool (arithmetic and date differences)
+- [x] Calculator tools (arithmetic and date differences; `src/agentic_rag/calculator.py`)
 - [ ] Hand-built evaluation set, labelled with the tools each question needs: lookup, calculation, multi-step, unanswerable
 - [ ] Fixed-pipeline baseline (plain RAG) scored on that set
 - [ ] LangGraph agent: routing, retrieval, relevance check with query rewriting, step limit
