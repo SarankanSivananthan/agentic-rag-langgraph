@@ -23,6 +23,7 @@ EVAL_DIR = PROJECT_ROOT / "data" / "eval"
 
 CATEGORIES = ("lookup", "calculation", "multi_step", "unanswerable")
 TOOLS = ("retrieve", "calculator")
+ANSWER_TYPES = ("text", "number")
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class Question:
     evidence: tuple[Evidence, ...]
     source: str
     computation: dict | None = None  # how a calculation question's answer follows from its evidence
+    answer_type: str = "text"  # "number": judged on the number in the answer, not on its wording
 
 
 def _parse(record: dict) -> Question:
@@ -49,6 +51,9 @@ def _parse(record: dict) -> Question:
     unknown = set(record["expected_tools"]) - set(TOOLS)
     if unknown:
         raise ValueError(f"{record['id']}: unknown tools {sorted(unknown)}")
+    answer_type = record.get("answer_type", "text")
+    if answer_type not in ANSWER_TYPES:
+        raise ValueError(f"{record['id']}: unknown answer type {answer_type!r}")
     return Question(
         id=record["id"],
         category=record["category"],
@@ -58,6 +63,7 @@ def _parse(record: dict) -> Question:
         evidence=tuple(Evidence(e["passage_id"], e["quote"]) for e in record.get("evidence", [])),
         source=record["source"],
         computation=record.get("computation"),
+        answer_type=answer_type,
     )
 
 
