@@ -17,6 +17,7 @@ class RunResult:
     input_tokens: int = 0
     output_tokens: int = 0
     error: str | None = None  # set when the run failed; the answer is then empty
+    step_limit_hit: bool = False  # the agent was still calling tools when it ran out of steps
 
 
 def message_text(message: BaseMessage) -> str:
