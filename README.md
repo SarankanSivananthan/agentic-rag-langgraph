@@ -2,7 +2,7 @@
 
 An agent that decides *how* to answer a question — look it up in a Wikipedia knowledge base, compute something, chain two lookups, or admit the answer isn't there — built on top of the retrieval pipeline from [rag-wikipedia](https://github.com/SarankanSivananthan/rag-wikipedia), and evaluated the same way: measured, with intervals, against a plain fixed-pipeline baseline on the same questions.
 
-> **Status: in progress.** This README is updated as each piece lands; nothing below is claimed until it is in the repo with its results.
+> **Status: in progress.** The code and the evaluation set are done and tested; the comparison itself has not been run yet, so there are **no results in this README** and none are claimed. It is updated as each piece lands.
 
 ## Goal
 
@@ -12,14 +12,11 @@ A tool-using agent is easy to demo and hard to evaluate. The question this proje
 
 - [x] Retriever over the Wikipedia passages (same chunking and embeddings as rag-wikipedia; `src/agentic_rag/retriever.py`)
 - [x] Calculator tools (arithmetic and date differences; `src/agentic_rag/calculator.py`)
-- [ ] Hand-built evaluation set, labelled with the tools each question needs (`data/eval/`, loader in `src/agentic_rag/evalset.py`):
-  - [x] lookup (30)
-  - [x] calculation (24)
-  - [x] multi-step (24)
-  - [x] unanswerable (20)
-- [ ] Fixed-pipeline baseline (plain RAG) scored on that set
-- [ ] LangGraph agent: routing, retrieval, relevance check with query rewriting, step limit
-- [ ] Evaluation: tool-choice accuracy, answer exact match / F1, correct abstention, steps, latency, cost — each with 95% intervals
+- [x] Hand-built evaluation set of 98 questions, labelled with the tools each needs (`data/eval/`, see below)
+- [x] Scoring: answer correctness, number match, abstention, tool use, bootstrap intervals, paired comparison (`metrics.py`, `report.py`)
+- [x] Fixed-pipeline baseline (`baseline.py`) and LangGraph agent (`agent.py`), tested with a scripted model
+- [x] Evaluation runner with per-question records and resume (`cli.py`, `scripts/run_eval.py`)
+- [ ] Run both systems on the 98 questions with the same real model (needs an OpenAI key or a local Ollama model)
 - [ ] Results and honest limitations in this README
 
 ## Evaluation design
@@ -75,3 +72,14 @@ Defined in `src/agentic_rag/metrics.py`, with no model in it, and tested on its 
 - **95% bootstrap intervals** on every rate.
 
 Known leniencies, stated rather than hidden: "contained in the answer" can credit a verbose answer that mentions the gold among other things, and an answer that says "not in the knowledge base, but I believe it is Accra" counts as an abstention on an unanswerable question even though it leaks a guess. Both are why the final answers are kept short and why EM/F1 are shown alongside.
+
+## Running the evaluation
+
+```bash
+export OPENAI_API_KEY=...        # or have Ollama running with a model pulled
+python scripts/run_eval.py --system baseline --provider openai --model <model>
+python scripts/run_eval.py --system agent    --provider openai --model <model>
+python scripts/run_eval.py --system agent --provider openai --model <model> --limit-per-category 2   # cheap smoke test
+```
+
+Both commands must use the **same model**: otherwise a difference between them could be a difference between models. Every question's record (answer, score, tool trace, latency, tokens) is written to `results/` as soon as it is scored; an interrupted run continues with `--resume`. `agentic_rag.report.compare` then compares two runs question by question, with a paired bootstrap interval and an exact sign test.
