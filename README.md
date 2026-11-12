@@ -71,6 +71,8 @@ Defined in `src/agentic_rag/metrics.py`, with no model in it, and tested on its 
 - **Tool use**, from a trace of tool calls: whether every kind of tool the question needs was called, whether a two-step question made at least two retrievals, and which tools were called needlessly.
 - **95% bootstrap intervals** on every rate.
 
+- **Grounded** — a correct answer can be right from memory (a small model "knows" where Lincoln was born without reading anything). A run is *grounded* when the facts its answer depends on appear in the text it actually retrieved: the answer itself for lookups and multi-step questions, both inputs (the two dates, or the two operands) for a calculation. **Correct and grounded** counts only answers that were right *and* supported by what was retrieved, and the report shows how many answers were right without being grounded. A fact appearing in an unrelated retrieved passage still counts as present, so this can overstate grounding but never understate it. `compare` can use this criterion instead of plain correctness.
+
 Known leniencies, stated rather than hidden: "contained in the answer" can credit a verbose answer that mentions the gold among other things, and an answer that says "not in the knowledge base, but I believe it is Accra" counts as an abstention on an unanswerable question even though it leaks a guess. Both are why the final answers are kept short and why EM/F1 are shown alongside.
 
 ## Running the evaluation
