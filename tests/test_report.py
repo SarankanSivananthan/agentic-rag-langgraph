@@ -93,3 +93,27 @@ def test_a_difference_that_could_be_noise_has_an_interval_spanning_zero():
 def test_comparing_runs_over_different_questions_is_refused():
     with pytest.raises(ValueError, match="same questions"):
         compare(run({"lookup-1": 1}), run({"lookup-2": 1}))
+
+
+# --- markdown -------------------------------------------------------------
+
+from agentic_rag.report import comparison_markdown, summary_markdown  # noqa: E402
+
+
+def test_summary_table_shows_rates_with_their_intervals():
+    records = [record(f"lookup-{i}", "lookup", 1.0 if i < 6 else 0.0) for i in range(10)]
+    table = summary_markdown(summarize(records))
+    lines = table.strip().split("\n")
+    assert lines[0].startswith("| Category | Questions | Correct (95% CI)")
+    row = lines[2]
+    assert row.startswith("| lookup | 10 | 60% (") and "-" in row.split("|")[3]
+    assert "all (mixture)" in lines[3]
+
+
+def test_comparison_table_shows_signed_point_differences_and_disagreements():
+    ids = [f"multi-step-{i}" for i in range(8)]
+    table = comparison_markdown(compare(run({i: 0 for i in ids}), run({i: n < 6 for n, i in enumerate(ids)})), "baseline", "agent")
+    row = table.strip().split("\n")[2]
+    assert row.startswith("| multi-step | 8 | 0% | 75% | +75 (")
+    assert "| 0 | 6 | 0.031 |" in row
+    assert "Difference, agent - baseline" in table.split("\n")[0]

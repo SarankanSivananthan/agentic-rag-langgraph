@@ -99,3 +99,48 @@ def compare(records_a: list[QuestionRecord], records_b: list[QuestionRecord]) ->
             "only_a": only_a, "only_b": only_b, "sign_test_p": sign_test_p(only_a, only_b),
         })
     return rows
+
+
+# --- markdown ---------------------------------------------------------------
+
+_CATEGORY_LABELS = {
+    "lookup": "lookup", "calculation": "calculation", "multi_step": "multi-step",
+    "unanswerable": "unanswerable", "all": "all (mixture)",
+}
+
+
+def _pct(value: float) -> str:
+    return "n/a" if math.isnan(value) else f"{value:.0%}"
+
+
+def summary_markdown(rows: list[dict]) -> str:
+    """The per-category table. Accuracy is a share of correct answers; on
+    unanswerable questions it is the share of correct abstentions."""
+    lines = [
+        "| Category | Questions | Correct (95% CI) | Calls to tools / question | Used the tools it needed | LLM calls | Latency (s) | Tokens in / out |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        lines.append(
+            f"| {_CATEGORY_LABELS[r['category']]} | {r['n']} | "
+            f"{_pct(r['accuracy'])} ({_pct(r['accuracy_low'])}-{_pct(r['accuracy_high'])}) | "
+            f"{r['mean_tool_calls']:.1f} | {_pct(r['required_tools_rate'])} | {r['mean_llm_calls']:.1f} | "
+            f"{r['mean_latency_s']:.1f} | {r['mean_input_tokens']:.0f} / {r['mean_output_tokens']:.0f} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def comparison_markdown(rows: list[dict], name_a: str, name_b: str) -> str:
+    """B against A. Difference is in percentage points; 'only X' counts the
+    questions only that system got right."""
+    lines = [
+        f"| Category | Questions | {name_a} | {name_b} | Difference, {name_b} - {name_a} (95% CI) | Only {name_a} right | Only {name_b} right | Sign test p |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        diff = f"{r['difference'] * 100:+.0f} ({r['difference_low'] * 100:+.0f} to {r['difference_high'] * 100:+.0f}) pts"
+        lines.append(
+            f"| {_CATEGORY_LABELS[r['category']]} | {r['n']} | {_pct(r['accuracy_a'])} | {_pct(r['accuracy_b'])} | "
+            f"{diff} | {r['only_a']} | {r['only_b']} | {r['sign_test_p']:.3f} |"
+        )
+    return "\n".join(lines) + "\n"
