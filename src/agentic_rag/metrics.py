@@ -155,6 +155,55 @@ def score_tool_use(question: Question, trace: list[ToolCall]) -> ToolScore:
     )
 
 
+# --- grounding ---------------------------------------------------------------
+
+
+def _loose(text: str) -> str:
+    """Lowercase letters and digits only, everything else a space.
+
+    The passages carry encoding damage ("December 28, 1856\u00e2\u0080\u0093February 3, 1924" for a
+    dash), which glues a date to its neighbour under the stricter answer
+    normalisation. For checking whether a fact was retrieved, any non-ASCII
+    or punctuation character is just a separator.
+    """
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", text.lower()).split())
+
+
+def required_facts(question: Question) -> list[str]:
+    """What must appear in the retrieved text for an answer to rest on the knowledge base.
+
+    lookup / multi-step   the answer itself
+    calculation           the inputs of the computation (both dates, or both operands)
+    unanswerable          nothing: there is no fact to retrieve
+    """
+    if question.category == "unanswerable":
+        return []
+    if question.category in ("lookup", "multi_step"):
+        return [question.answer]
+    tool, args = question.computation["tool"], question.computation["args"]
+    if tool == "date_difference":
+        return [args[0], args[1]]
+    return [str(int(number)) for number in extract_numbers(args[0])]
+
+
+def is_grounded(question: Question, trace: list[ToolCall]) -> bool | None:
+    """Did the run retrieve the facts its answer depends on?
+
+    A model can be right from memory: a small model "knows" where Lincoln was
+    born without reading anything. Correct and grounded means the answer was
+    available in what the system actually retrieved; correct but not grounded
+    means it got there some other way. None where it does not apply.
+
+    A fact that happens to appear in an unrelated retrieved passage still
+    counts as present, so this can overstate grounding, never understate it.
+    """
+    facts = required_facts(question)
+    if not facts:
+        return None
+    retrieved = _loose(" ".join(call.output for call in trace if call.family == "retrieve"))
+    return all(f" {_loose(fact)} " in f" {retrieved} " for fact in facts)
+
+
 # --- one question ----------------------------------------------------------
 
 

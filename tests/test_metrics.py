@@ -9,6 +9,8 @@ from agentic_rag.metrics import (
     extract_numbers,
     f1_score,
     is_abstention,
+    is_grounded,
+    required_facts,
     normalize_answer,
     number_match,
     score_answer,
@@ -148,3 +150,58 @@ def test_bootstrap_interval_brackets_the_mean_and_is_reproducible():
     low, high = bootstrap_ci(values)
     assert low < 0.6 < high and (low, high) == bootstrap_ci(values)
     assert 0.4 < low and high < 0.8
+
+
+# --- grounding ------------------------------------------------------------
+
+WOLF = QUESTIONS["calculation-024"]  # 62 - 32
+
+
+def retrieved(text):
+    return [ToolCall("retrieve", {"query": "q"}, text)]
+
+
+def test_a_lookup_is_grounded_only_if_the_answer_was_in_what_was_retrieved():
+    assert is_grounded(LOOKUP, retrieved("Fillmore was born in a log cabin in Summerhill, New York, to ...")) is True
+    assert is_grounded(LOOKUP, retrieved("Millard Fillmore was the thirteenth President.")) is False
+    assert is_grounded(LOOKUP, []) is False  # answered without searching at all
+
+
+def test_a_calculation_is_grounded_when_both_inputs_were_retrieved():
+    both = retrieved("Lincoln (February 12, 1809 - April 15, 1865) ... On November 6, 1860, Lincoln was elected.")
+    assert is_grounded(CALCULATION, both) is True
+    assert is_grounded(CALCULATION, retrieved("On November 6, 1860, Lincoln was elected.")) is False  # birth date missing
+    assert required_facts(CALCULATION) == ["February 12, 1809", "November 6, 1860"]
+
+
+def test_arithmetic_is_grounded_when_both_operands_were_retrieved():
+    assert required_facts(WOLF) == ["62", "32"]
+    assert is_grounded(WOLF, retrieved("weight typically varies between 32 and 62 kilograms")) is True
+    assert is_grounded(WOLF, retrieved("weighs 62 kilograms")) is False
+
+
+def test_only_retrievals_count_not_the_calculator_output():
+    trace = [ToolCall("calculator", {"expression": "1"}, "Summerhill, New York")]
+    assert is_grounded(LOOKUP, trace) is False
+
+
+def test_grounding_does_not_apply_to_unanswerable_questions():
+    assert required_facts(UNANSWERABLE) == []
+    assert is_grounded(UNANSWERABLE, retrieved("anything")) is None
+
+
+def test_the_evidence_written_for_every_question_is_enough_to_ground_it():
+    # Ties the definition to the dataset: feeding a question's own evidence quotes
+    # as the retrieved text must ground it, or required_facts and the evidence disagree.
+    for question in QUESTIONS.values():
+        if question.category == "unanswerable":
+            continue
+        evidence_text = "\n".join(e.quote for e in question.evidence)
+        assert is_grounded(question, retrieved(evidence_text)) is True, question.id
+
+
+def test_encoding_damage_between_a_date_and_its_neighbour_does_not_hide_it():
+    # How passage 2129 really reads: a mangled dash glued to the second date.
+    wilson = QUESTIONS["calculation-005"]
+    damaged = "Thomas Woodrow Wilson (December 28, 1856\u00e2\u0080\u0093February 3, 1924), was the twenty-eighth President"
+    assert is_grounded(wilson, retrieved(damaged)) is True
