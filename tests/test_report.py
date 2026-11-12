@@ -47,3 +47,49 @@ def test_costs_errors_and_tool_use_are_aggregated():
 def test_categories_with_no_records_are_left_out():
     assert [r["category"] for r in summarize([record("lookup-1", "lookup", 1.0)])] == ["lookup", "all"]
     assert summarize([]) == []
+
+
+# --- paired comparison ----------------------------------------------------
+
+from agentic_rag.report import compare, sign_test_p  # noqa: E402
+
+
+def run(correct_by_id):
+    return [record(i, i.rsplit("-", 1)[0].replace("-", "_"), float(c)) for i, c in correct_by_id.items()]
+
+
+def test_the_sign_test_matches_known_values():
+    assert sign_test_p(0, 0) == 1.0
+    assert sign_test_p(0, 5) == pytest.approx(2 / 32)
+    assert sign_test_p(0, 10) == pytest.approx(2 / 1024)
+    assert sign_test_p(5, 5) == 1.0
+    assert sign_test_p(3, 7) == pytest.approx(2 * (1 + 10 + 45 + 120) / 1024)
+
+
+def test_compare_reports_the_paired_difference_and_who_won_where():
+    ids = [f"multi-step-{i}" for i in range(8)] + [f"lookup-{i}" for i in range(8)]
+    baseline = run({i: (i.startswith("lookup") and int(i.rsplit("-", 1)[1]) < 6) for i in ids})  # right on 6 lookups, no multi-step
+    agent = run({i: (i.startswith("multi-step") and int(i.rsplit("-", 1)[1]) < 6) or (i.startswith("lookup") and int(i.rsplit("-", 1)[1]) < 6) for i in ids})
+
+    rows = {r["category"]: r for r in compare(baseline, agent)}
+
+    assert rows["lookup"]["difference"] == 0 and rows["lookup"]["only_a"] == rows["lookup"]["only_b"] == 0
+    assert rows["multi_step"]["difference"] == pytest.approx(6 / 8)
+    assert (rows["multi_step"]["only_a"], rows["multi_step"]["only_b"]) == (0, 6)
+    assert rows["multi_step"]["difference_low"] > 0  # all six disagreements favour the agent
+    assert rows["multi_step"]["sign_test_p"] == pytest.approx(2 / 64)
+    assert rows["all"]["n"] == 16 and rows["all"]["difference"] == pytest.approx(6 / 16)
+
+
+def test_a_difference_that_could_be_noise_has_an_interval_spanning_zero():
+    ids = [f"lookup-{i}" for i in range(10)]
+    a = run({i: n < 5 for n, i in enumerate(ids)})
+    b = run({i: n in (0, 1, 2, 3, 5) for n, i in enumerate(ids)})  # one question each way
+    row = compare(a, b)[0]
+    assert row["difference"] == 0 and row["difference_low"] < 0 < row["difference_high"]
+    assert row["sign_test_p"] == 1.0
+
+
+def test_comparing_runs_over_different_questions_is_refused():
+    with pytest.raises(ValueError, match="same questions"):
+        compare(run({"lookup-1": 1}), run({"lookup-2": 1}))
