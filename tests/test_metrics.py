@@ -135,6 +135,14 @@ def test_tool_use_for_each_kind_of_question():
     assert not score_tool_use(UNANSWERABLE, []).required_tools_used
 
 
+def test_date_difference_counts_as_the_calculator_for_scoring():
+    retrieve = ToolCall("retrieve", {})
+    by_date_tool = score_tool_use(CALCULATION, [retrieve, ToolCall("date_difference", {})])
+    assert by_date_tool.required_tools_used and by_date_tool.needless_tools == ()
+    # ...and a question that needs no calculation still flags it as needless.
+    assert score_tool_use(LOOKUP, [retrieve, ToolCall("date_difference", {})]).needless_tools == ("calculator",)
+
+
 def test_bootstrap_interval_brackets_the_mean_and_is_reproducible():
     values = [1] * 60 + [0] * 40
     low, high = bootstrap_ci(values)

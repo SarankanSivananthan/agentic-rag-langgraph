@@ -116,10 +116,19 @@ def is_abstention(answer: str) -> bool:
 # --- tool use --------------------------------------------------------------
 
 
+# The calculator is exposed to the model as two simple tools; for scoring they
+# are one kind of tool, because a question either needs calculation or does not.
+TOOL_FAMILY = {"retrieve": "retrieve", "calculator": "calculator", "date_difference": "calculator"}
+
+
 @dataclass(frozen=True)
 class ToolCall:
-    name: str  # "retrieve" or "calculator"
+    name: str  # "retrieve", "calculator" or "date_difference"
     args: dict
+
+    @property
+    def family(self) -> str:
+        return TOOL_FAMILY.get(self.name, self.name)
 
 
 @dataclass(frozen=True)
@@ -135,7 +144,7 @@ def minimum_retrievals(question: Question) -> int:
 
 
 def score_tool_use(question: Question, trace: list[ToolCall]) -> ToolScore:
-    used = Counter(call.name for call in trace)
+    used = Counter(call.family for call in trace)
     expected = set(question.expected_tools)
     return ToolScore(
         required_tools_used=expected <= set(used),
