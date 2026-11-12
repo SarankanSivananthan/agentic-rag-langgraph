@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from agentic_rag.evaluate import QuestionRecord
@@ -9,7 +11,7 @@ def record(id, category, correct, **overrides):
         id=id, category=category, subtype=None, question="Q?", gold="A", prediction="p", correct=correct,
         exact_match=correct, f1=correct, abstained=False, required_tools_used=True, enough_retrievals=True,
         needless_tools=[], trace=[{"name": "retrieve", "args": {}}], latency_s=1.0, llm_calls=2,
-        input_tokens=100, output_tokens=10, error=None, step_limit_hit=False,
+        input_tokens=100, output_tokens=10, error=None, step_limit_hit=False, grounded=True,
     )
     fields.update(overrides)
     return QuestionRecord(**fields)
@@ -104,7 +106,7 @@ def test_summary_table_shows_rates_with_their_intervals():
     records = [record(f"lookup-{i}", "lookup", 1.0 if i < 6 else 0.0) for i in range(10)]
     table = summary_markdown(summarize(records))
     lines = table.strip().split("\n")
-    assert lines[0].startswith("| Category | Questions | Correct (95% CI)")
+    assert lines[0].startswith("| Category | Questions | Correct (95% CI) | Correct and grounded (95% CI)")
     row = lines[2]
     assert row.startswith("| lookup | 10 | 60% (") and "-" in row.split("|")[3]
     assert "all (mixture)" in lines[3]
@@ -117,3 +119,37 @@ def test_comparison_table_shows_signed_point_differences_and_disagreements():
     assert row.startswith("| multi-step | 8 | 0% | 75% | +75 (")
     assert "| 0 | 6 | 0.031 |" in row
     assert "Difference, agent - baseline" in table.split("\n")[0]
+
+
+# --- grounding in the report ---------------------------------------------
+
+
+def test_a_right_answer_without_its_facts_retrieved_is_correct_but_not_faithful():
+    records = [
+        record("lookup-1", "lookup", 1.0, grounded=True),
+        record("lookup-2", "lookup", 1.0, grounded=False),  # right, from memory
+        record("lookup-3", "lookup", 0.0, grounded=True),
+        record("lookup-4", "lookup", 0.0, grounded=False),
+    ]
+    row = summarize(records)[0]
+    assert row["accuracy"] == 0.5 and row["faithful"] == 0.25
+    assert row["grounded_rate"] == 0.5 and row["correct_not_grounded"] == 1
+
+
+def test_unanswerable_questions_count_by_abstention_and_have_no_grounding():
+    records = [record("unanswerable-1", "unanswerable", 1.0, grounded=None), record("unanswerable-2", "unanswerable", 0.0, grounded=None)]
+    row = summarize(records)[0]
+    assert row["faithful"] == 0.5
+    assert math.isnan(row["grounded_rate"]) and row["correct_not_grounded"] == 0
+
+
+def test_compare_can_use_the_faithful_criterion():
+    ids = [f"lookup-{i}" for i in range(6)]
+    # Same answers right; system B gets half of them from memory.
+    a = [record(i, "lookup", 1.0, grounded=True) for i in ids]
+    b = [record(i, "lookup", 1.0, grounded=(n < 3)) for n, i in enumerate(ids)]
+    assert compare(a, b)[0]["difference"] == 0
+    faithful = compare(a, b, metric="faithful")[0]
+    assert faithful["difference"] == -0.5 and (faithful["only_a"], faithful["only_b"]) == (3, 0)
+    with pytest.raises(ValueError, match="metric"):
+        compare(a, b, metric="vibes")

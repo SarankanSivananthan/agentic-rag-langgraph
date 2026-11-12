@@ -52,3 +52,23 @@ def test_records_survive_a_round_trip_through_a_file(tmp_path):
     records = evaluate(system, [LOOKUP, UNANSWERABLE])
     write_records(records, tmp_path / "nested" / "run.jsonl")
     assert read_records(tmp_path / "nested" / "run.jsonl") == records
+
+
+def test_a_correct_answer_from_memory_is_recorded_as_not_grounded():
+    answer = "Fillmore was born in Summerhill, New York."
+    from_memory = evaluate_question(lambda q: RunResult(answer, [ToolCall("retrieve", {}, "Nothing relevant here.")]), LOOKUP)
+    from_passage = evaluate_question(lambda q: RunResult(answer, [ToolCall("retrieve", {}, "He was born in Summerhill, New York.")]), LOOKUP)
+    assert (from_memory.correct, from_memory.grounded, from_memory.faithful_score()) == (1.0, False, 0.0)
+    assert (from_passage.correct, from_passage.grounded, from_passage.faithful_score()) == (1.0, True, 1.0)
+
+
+def test_grounding_does_not_apply_to_unanswerable_questions_and_old_records_still_load(tmp_path):
+    import json
+    from dataclasses import asdict
+
+    record = evaluate_question(lambda q: RunResult("I don't know."), UNANSWERABLE)
+    assert record.grounded is None and record.faithful_score() == 1.0
+    # A record written before grounding existed has no such field and must still read back.
+    old = {k: v for k, v in asdict(record).items() if k != "grounded"}
+    (tmp_path / "old.jsonl").write_text(json.dumps(old) + "\n")
+    assert read_records(tmp_path / "old.jsonl")[0].grounded is None

@@ -24,8 +24,12 @@ def summarize(records: list[QuestionRecord]) -> list[dict]:
     """One row per category present in the records, then an 'all' row.
 
     `accuracy` is the share of correct answers; on unanswerable questions that
-    is the share of correct abstentions. Read the categories separately: the
-    'all' row mixes categories in whatever proportion the set happens to have.
+    is the share of correct abstentions. `faithful` additionally requires the
+    answer to be grounded in what was retrieved, so an answer given from memory
+    does not count; `correct_not_grounded` is how many answers were right
+    without the supporting facts having been retrieved. Read the categories
+    separately: the 'all' row mixes categories in whatever proportion the set
+    happens to have.
     """
     rows = []
     groups = [(c, [r for r in records if r.category == c]) for c in CATEGORIES] + [("all", records)]
@@ -33,12 +37,19 @@ def summarize(records: list[QuestionRecord]) -> list[dict]:
         if not group:
             continue
         low, high = bootstrap_ci([r.correct for r in group])
+        faithful_low, faithful_high = bootstrap_ci([r.faithful_score() for r in group])
+        answerable = [r for r in group if r.category != "unanswerable"]
         rows.append({
             "category": name,
             "n": len(group),
             "accuracy": _mean(r.correct for r in group),
             "accuracy_low": low,
             "accuracy_high": high,
+            "faithful": _mean(r.faithful_score() for r in group),
+            "faithful_low": faithful_low,
+            "faithful_high": faithful_high,
+            "grounded_rate": _mean(r.grounded for r in answerable),
+            "correct_not_grounded": sum(r.correct >= 0.5 and not r.grounded for r in answerable),
             "abstention_rate": _mean(r.abstained for r in group),
             "required_tools_rate": _mean(r.required_tools_used for r in group),
             "enough_retrievals_rate": _mean(r.enough_retrievals for r in group),
@@ -67,14 +78,18 @@ def sign_test_p(only_a: int, only_b: int) -> float:
     return min(1.0, 2 * tail / 2**n)
 
 
-def compare(records_a: list[QuestionRecord], records_b: list[QuestionRecord]) -> list[dict]:
+def compare(records_a: list[QuestionRecord], records_b: list[QuestionRecord], metric: str = "correct") -> list[dict]:
     """System B against system A on the same questions, paired.
 
     The difference is taken question by question (B correct minus A correct),
     so the interval reflects how often the two systems actually disagree, which
     is far tighter than comparing two separate intervals. Positive means B is
     better. `only_a` / `only_b` count the questions only that system got right.
+    `metric` is "correct" or "faithful" (correct and grounded in what was retrieved).
     """
+    if metric not in ("correct", "faithful"):
+        raise ValueError("metric must be 'correct' or 'faithful'")
+    value = (lambda r: r.correct) if metric == "correct" else QuestionRecord.faithful_score
     by_id_a = {r.id: r for r in records_a}
     by_id_b = {r.id: r for r in records_b}
     if by_id_a.keys() != by_id_b.keys():
@@ -86,8 +101,8 @@ def compare(records_a: list[QuestionRecord], records_b: list[QuestionRecord]) ->
     for name, ids in groups:
         if not ids:
             continue
-        a_correct = [by_id_a[i].correct >= 0.5 for i in ids]
-        b_correct = [by_id_b[i].correct >= 0.5 for i in ids]
+        a_correct = [value(by_id_a[i]) >= 0.5 for i in ids]
+        b_correct = [value(by_id_b[i]) >= 0.5 for i in ids]
         differences = [float(b) - float(a) for a, b in zip(a_correct, b_correct)]
         low, high = bootstrap_ci(differences)
         only_a = sum(a and not b for a, b in zip(a_correct, b_correct))
@@ -117,13 +132,14 @@ def summary_markdown(rows: list[dict]) -> str:
     """The per-category table. Accuracy is a share of correct answers; on
     unanswerable questions it is the share of correct abstentions."""
     lines = [
-        "| Category | Questions | Correct (95% CI) | Calls to tools / question | Used the tools it needed | LLM calls | Latency (s) | Tokens in / out |",
-        "|---|---|---|---|---|---|---|---|",
+        "| Category | Questions | Correct (95% CI) | Correct and grounded (95% CI) | Calls to tools / question | Used the tools it needed | LLM calls | Latency (s) | Tokens in / out |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         lines.append(
             f"| {_CATEGORY_LABELS[r['category']]} | {r['n']} | "
             f"{_pct(r['accuracy'])} ({_pct(r['accuracy_low'])}-{_pct(r['accuracy_high'])}) | "
+            f"{_pct(r['faithful'])} ({_pct(r['faithful_low'])}-{_pct(r['faithful_high'])}) | "
             f"{r['mean_tool_calls']:.1f} | {_pct(r['required_tools_rate'])} | {r['mean_llm_calls']:.1f} | "
             f"{r['mean_latency_s']:.1f} | {r['mean_input_tokens']:.0f} / {r['mean_output_tokens']:.0f} |"
         )

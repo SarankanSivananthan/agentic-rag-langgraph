@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from agentic_rag.evalset import Question
-from agentic_rag.metrics import score_answer, score_tool_use
+from agentic_rag.metrics import is_grounded, score_answer, score_tool_use
 from agentic_rag.runs import RunResult
 
 System = Callable[[str], RunResult]
@@ -42,6 +42,13 @@ class QuestionRecord:
     output_tokens: int
     error: str | None
     step_limit_hit: bool
+    grounded: bool | None = None  # the facts the answer depends on were in the retrieved text (None: not applicable)
+
+    def faithful_score(self) -> float:
+        """1.0 if correct AND grounded in what was retrieved; for unanswerable questions, a correct abstention."""
+        if self.category == "unanswerable":
+            return self.correct
+        return float(self.correct >= 0.5 and bool(self.grounded))
 
 
 def evaluate_question(system: System, question: Question) -> QuestionRecord:
@@ -58,6 +65,7 @@ def evaluate_question(system: System, question: Question) -> QuestionRecord:
         latency_s=result.latency_s, llm_calls=result.llm_calls,
         input_tokens=result.input_tokens, output_tokens=result.output_tokens,
         error=result.error, step_limit_hit=result.step_limit_hit,
+        grounded=is_grounded(question, result.trace),
     )
 
 
