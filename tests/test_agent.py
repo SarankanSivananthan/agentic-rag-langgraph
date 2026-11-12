@@ -115,3 +115,20 @@ def test_a_failing_model_call_is_recorded_not_raised(retriever):
     _, graph = agent_for([], retriever)  # empty script: the first call raises
     result = run_agent(graph, "Q?")
     assert result.answer == "" and "script ran out" in result.error
+
+
+def test_the_trace_pairs_each_call_with_the_output_the_tool_returned(retriever):
+    _, graph = agent_for([
+        AIMessage("", tool_calls=[
+            tool_call("retrieve", {"query": "Uruguay"}, "a"),
+            tool_call("calculator", {"expression": "6 * 7"}, "b"),
+        ]),
+        AIMessage("Done."),
+    ], retriever)
+
+    result = run_agent(graph, "Q?")
+
+    assert [(c.name, c.output) for c in result.trace] == [
+        ("retrieve", "[1] Passage about Uruguay."),
+        ("calculator", "42"),
+    ]

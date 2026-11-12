@@ -54,7 +54,7 @@ def evaluate_question(system: System, question: Question) -> QuestionRecord:
         correct=answer.correct, exact_match=answer.exact_match, f1=answer.f1, abstained=answer.abstained,
         required_tools_used=tools.required_tools_used, enough_retrievals=tools.enough_retrievals,
         needless_tools=list(tools.needless_tools),
-        trace=[{"name": call.name, "args": call.args} for call in result.trace],
+        trace=[{"name": call.name, "args": call.args, "output": call.output} for call in result.trace],
         latency_s=result.latency_s, llm_calls=result.llm_calls,
         input_tokens=result.input_tokens, output_tokens=result.output_tokens,
         error=result.error, step_limit_hit=result.step_limit_hit,

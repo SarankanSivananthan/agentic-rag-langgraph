@@ -17,7 +17,7 @@ def test_a_correct_answer_with_the_right_tool_is_recorded_as_such():
     assert record.correct == 1.0 and not record.abstained and record.exact_match == 0.0
     assert record.required_tools_used and record.enough_retrievals and record.needless_tools == []
     assert (record.latency_s, record.llm_calls, record.input_tokens, record.output_tokens) == (1.5, 2, 300, 20)
-    assert record.trace == [{"name": "retrieve", "args": {"query": LOOKUP.question}}]
+    assert record.trace == [{"name": "retrieve", "args": {"query": LOOKUP.question}, "output": ""}]
 
 
 def test_a_numeric_question_answered_without_the_calculator_is_flagged():

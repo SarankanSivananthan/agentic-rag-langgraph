@@ -13,7 +13,7 @@ import time
 from typing import Annotated, TypedDict
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -52,8 +52,10 @@ def build_agent(llm: BaseChatModel, tools: list[BaseTool], max_steps: int = DEFA
 
 
 def tool_trace(messages: list[BaseMessage]) -> list[ToolCall]:
+    """Every tool call in order, each with the output the tool node returned for it."""
+    outputs = {m.tool_call_id: message_text(m) for m in messages if isinstance(m, ToolMessage)}
     return [
-        ToolCall(call["name"], call["args"])
+        ToolCall(call["name"], call["args"], outputs.get(call["id"], ""))
         for message in messages if isinstance(message, AIMessage)
         for call in message.tool_calls
     ]

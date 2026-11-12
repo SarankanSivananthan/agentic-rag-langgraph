@@ -24,6 +24,7 @@ def test_baseline_retrieves_once_with_the_question_and_answers_from_the_passages
     assert result.answer == "Montevideo." and result.error is None
     assert retriever.queries == [("What is the capital of Uruguay?", 2)]
     assert [(c.name, c.args) for c in result.trace] == [("retrieve", {"query": "What is the capital of Uruguay?"})]
+    assert "Montevideo is the capital of Uruguay." in result.trace[0].output  # what the model was shown
     assert (result.llm_calls, result.input_tokens, result.output_tokens) == (1, 120, 4)
     assert result.latency_s >= 0
 

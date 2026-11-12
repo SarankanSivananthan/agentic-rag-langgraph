@@ -125,6 +125,7 @@ TOOL_FAMILY = {"retrieve": "retrieve", "calculator": "calculator", "date_differe
 class ToolCall:
     name: str  # "retrieve", "calculator" or "date_difference"
     args: dict
+    output: str = ""  # what the tool returned, so a run can be checked against what it actually saw
 
     @property
     def family(self) -> str:

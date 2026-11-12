@@ -22,6 +22,7 @@ def run_baseline(llm: BaseChatModel, retriever: Retriever, question: str, k: int
     try:
         hits = retriever.search(question, k=k)
         context = "\n\n".join(f"[{i}] {hit.text}" for i, hit in enumerate(hits, start=1))
+        trace = [ToolCall("retrieve", {"query": question}, context)]
         reply = llm.invoke([
             SystemMessage(BASELINE_SYSTEM_PROMPT),
             HumanMessage(BASELINE_USER_TEMPLATE.format(context=context, question=question)),
